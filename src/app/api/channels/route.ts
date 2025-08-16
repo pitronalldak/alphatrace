@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { Prisma } from '@prisma/client'
 
 export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
@@ -7,13 +8,13 @@ export async function GET(request: Request) {
     const takeParam = searchParams.get('take')
     const take = Math.min(Number.isFinite(Number(takeParam)) ? Number(takeParam) : 50, 200)
 
-    const where = q
+    const where: Prisma.channelsWhereInput | undefined = q
         ? {
             OR: [
-                { title: { contains: q, mode: 'insensitive' } },
-                { description: { contains: q, mode: 'insensitive' } },
-                { url: { contains: q, mode: 'insensitive' } },
-                { channel_id: { contains: q, mode: 'insensitive' } },
+                { title: { contains: q, mode: Prisma.QueryMode.insensitive } },
+                { description: { contains: q, mode: Prisma.QueryMode.insensitive } },
+                { url: { contains: q, mode: Prisma.QueryMode.insensitive } },
+                { channel_id: { contains: q, mode: Prisma.QueryMode.insensitive } },
             ],
         }
         : undefined
