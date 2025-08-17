@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma'
 import TranscriptPanel from './TranscriptPanel'
 import ExpandableText from './ExpandableText'
 import AudioFooter from './AudioFooter'
+import RefreshPostButton from './RefreshPostButton'
 import { createRef } from 'react'
 
 export const dynamic = 'force-dynamic'
@@ -35,7 +36,7 @@ export default async function PostPage({ params }: { params: Promise<Params> }) 
 			logo_url: true,
 			duration_seconds: true,
 			s3_audio_url: true,
-			channels: { select: { id: true, title: true, logo_url: true, subscribers: true } },
+			channels: { select: { id: true, title: true, logo_url: true, subscribers: true, url: true } },
 			transcripts: { select: { text: true } },
 		},
 	})
@@ -66,7 +67,10 @@ export default async function PostPage({ params }: { params: Promise<Params> }) 
 							)}
 						</div>
 						<div className="min-w-0">
-							<h1 className="text-3xl md:text-5xl font-extrabold tracking-tight text-gray-900">{post.title ?? post.id}</h1>
+							<div className="flex items-start justify-between gap-4">
+								<h1 className="text-3xl md:text-5xl font-extrabold tracking-tight text-gray-900">{post.title ?? post.id}</h1>
+								<RefreshPostButton postUrl={post.url} />
+							</div>
 							<div className="mt-4 flex flex-wrap items-center gap-5 text-sm text-gray-600">
 								<span className="inline-flex items-center gap-2"><span aria-hidden>👤</span><span>{post.channels?.title ?? 'Channel'}</span></span>
 								<span className="inline-flex items-center gap-2"><span aria-hidden>📅</span><span>{published}</span></span>

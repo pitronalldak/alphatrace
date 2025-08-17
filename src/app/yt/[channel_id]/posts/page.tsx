@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
 import PostsList from './postsList'
+import RefreshChannelButton from './RefreshChannelButton'
 
 export const dynamic = 'force-dynamic'
 
@@ -39,7 +40,10 @@ export default async function ChannelPostsPage({ params }: { params: Promise<Par
 							<div className="h-24 w-24 rounded-md bg-gray-200" />
 						)}
 						<div className="flex-1 min-w-0">
-							<h1 className="text-2xl font-bold truncate">{channel.title ?? channel_id}</h1>
+							<div className="flex items-start justify-between gap-3">
+								<h1 className="text-2xl font-bold truncate">{channel.title ?? channel_id}</h1>
+								<RefreshChannelButton channelUrl={channel.url} />
+							</div>
 							<p className="text-sm text-gray-500">{Intl.NumberFormat('en', { notation: 'compact' }).format(channel.subscribers)} subscribers</p>
 							{channel.description && (
 								<p className="mt-2 text-sm text-gray-600">{channel.description}</p>

@@ -4,6 +4,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { Poppins } from 'next/font/google'
 import { Inter } from 'next/font/google'
+import RefreshChannelButton from './RefreshChannelButton'
+import RefreshPostButton from './[post_id]/RefreshPostButton'
 
 const poppins = Poppins({ subsets: ['latin'], weight: ['400', '500', '600', '700'] })
 const inter = Inter({ subsets: ['latin'], weight: ['500'] })
@@ -36,7 +38,7 @@ function formatDuration(seconds?: number | null): string | null {
 	return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
 }
 
-export default function PostsList({ channelId }: { channelId: string }) {
+export default function PostsList({ channelId, channelUrl }: { channelId: string; channelUrl?: string | null }) {
 	const [posts, setPosts] = useState<PostItem[]>([])
 	const [page, setPage] = useState(0)
 	const [hasMore, setHasMore] = useState(true)
@@ -116,8 +118,10 @@ export default function PostsList({ channelId }: { channelId: string }) {
 						</div>
 					</div>
 					<div className="flex flex-col items-end gap-1">
-						{p.hasTranscript && (
+						{p.hasTranscript ? (
 							<span className="inline-flex items-center justify-center h-6 w-8 rounded border border-gray-300 text-[10px] font-semibold text-gray-700 bg-white">CC</span>
+						) : (
+							<RefreshChannelButton channelUrl={channelUrl ?? undefined} size="sm" title="Fetch transcript" showStatus={false} />
 						)}
 						{formatDuration(p.durationSec) && (
 							<span className={`${inter.className}`} style={{ fontSize: '12px', lineHeight: '16px', fontWeight: 500, color: '#171A1FFF' }}>
