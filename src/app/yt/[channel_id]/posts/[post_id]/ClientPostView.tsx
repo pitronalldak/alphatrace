@@ -28,13 +28,14 @@ export default function ClientPostView({
     duration?: string | null
     description?: string | null
     paragraphs: Snippet[]
-    mentions: { start: number; end: number;  entityType?: string; entityId: string | null; details: { score: number; match_score?: number; name?: string | null; ticker?: string | null; entity_id: string } }[]
+    mentions: { start: number; end: number;  entityType?: string; entityId: string | null; details: { sentiment: any; match_score?: number; name?: string | null; ticker?: string | null; entity_id: string } }[]
 }) {
     const ytRef = useRef<{ playFrom: (t: number) => void } | null>(null)
     const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null)
 
+    console.log('mentions', mentions)
     const chips = useMemo(() => {
-        const byKey = new Map<string, { id: string; label: string; kind: 'company' | 'crypto' | 'other' }>()
+        const byKey = new Map<string, { id: string; label: string; kind: 'company' | 'crypto' | 'other'; color: 'bg-green-400' | 'bg-red-400' | 'bg-gray-400' }>()
         for (const m of mentions) {
             const name = (m.details?.name ?? '').trim()
             if (!name) continue
@@ -43,7 +44,10 @@ export default function ClientPostView({
             const ticker = m.details?.ticker ? ` (${m.details.ticker})` : ''
             const label = (name + ticker).trim()
             const kind: 'company' | 'crypto' | 'other' = m.entityType === 'company' ? 'company' : m.entityType === 'crypto' ? 'crypto' : 'other'
-            byKey.set(key, { id: name, label, kind })
+            const score = Number(m.details?.sentiment?.score)
+            console.log('score', score)
+            const color: 'bg-green-400' | 'bg-red-400' | 'bg-gray-400' = Number.isFinite(score) ? (score > 0 ? 'bg-green-400' : score < 0 ? 'bg-red-400' : 'bg-gray-400') : 'bg-gray-400'
+            byKey.set(key, { id: name, label, kind, color })
         }
         return Array.from(byKey.values())
     }, [mentions])
@@ -82,7 +86,7 @@ export default function ClientPostView({
                                     key={chip.id}
                                     type="button"
                                     onClick={() => setSelectedEntityId((prev) => (prev === chip.id ? null : chip.id))}
-                                    className={`px-3 py-1 rounded-full text-sm border cursor-pointer transition-transform transition-colors duration-200 ease-out ${selected ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-800 border-gray-300 hover:bg-blue-50'} hover:scale-105 active:scale-95 shadow-sm`}
+                                    className={`px-3 py-1 rounded-full text-sm font-bold text-white border cursor-pointer transition-transform transition-colors duration-200 ease-out ${selected ? 'bg-blue-600 border-blue-600' : `${chip.color} border-transparent`} hover:scale-105 active:scale-95 shadow-sm`}
                                 >
                                     <span className="inline-flex items-center gap-2">
                                         {chip.kind === 'company' && (

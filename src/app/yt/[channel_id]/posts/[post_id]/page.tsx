@@ -61,14 +61,6 @@ export default async function PostPage({ params }: { params: Promise<Params> }) 
 		.filter((m: { entity_type: string; entity_id: string | null }) => m.entity_type === 'cryptocurrency' && m.entity_id)
 		.map((m: { entity_id: string | null }) => String(m.entity_id))))
 
-	const companies = companyIds.length > 0 ? await prisma.companies.findMany({
-		where: { id: { in: companyIds } },
-		select: { id: true, name: true, ticker: true },
-	}) : []
-	const cryptos = cryptoIds.length > 0 ? await prisma.cryptocurrencies.findMany({
-		where: { id: { in: cryptoIds } },
-		select: { id: true, name: true },
-	}) : []
 
 
 	const mentions = mentionsRaw.map((m: { start: number; end: number; entity_type: string; entity_id: string | null; details: any }) => {

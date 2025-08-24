@@ -4,7 +4,7 @@ import { RefObject, useEffect, useMemo, useRef, useState, type ReactNode } from 
 
 type Snippet = { confidence: string; end: number; speaker: string; start: number; text: string }
 
-type Mention = { start: number; end: number; entityId?: string | null; details: { score: number; name?: string | null; ticker?: string | null } }
+type Mention = { start: number; end: number; entityId?: string | null; details: { sentiment: any; name?: string | null; ticker?: string | null } }
 
 type Props = {
 	paragraphs: Snippet[]
@@ -89,11 +89,7 @@ export default function TranscriptPanel({ paragraphs, audioUrl, externalAudioRef
 							const match = selectedEntityId
 								? mentions.find((m) => snip.start < m.end && snip.end > m.start && (m.details?.name ?? null) === selectedEntityId)
 								: undefined
-
-							const rawScore = (match as any)?.details?.score ?? (match as any)?.details?.match_score
-							const score = Number(rawScore)
-							const colorClass = score == null ? '' : score > 0 ? 'bg-green-500' : score < 0 ? 'bg-red-500' : 'bg-gray-500'
-							const isHighlighted = !!match && !!colorClass
+							const isHighlighted = !!match
 
 							if (!isHighlighted) {
 								// Non-highlighted snippet rendered plainly
@@ -117,7 +113,11 @@ export default function TranscriptPanel({ paragraphs, audioUrl, externalAudioRef
 							}
 
 							// Start a highlighted group
-							const groupColor = colorClass
+							let groupColor = (() => {
+								const sRaw = (match as any)?.details?.sentiment?.score ?? (match as any)?.details?.score ?? (match as any)?.details?.match_score
+								const sNum = Number(sRaw)
+								return sRaw == null || !Number.isFinite(sNum) ? 'bg-gray-400' : sNum > 0 ? 'bg-green-400' : sNum < 0 ? 'bg-red-400' : 'bg-gray-400'
+							})()
 							const groupItems: ReactNode[] = []
 							let j = i
 							while (j < filtered.length) {
@@ -126,9 +126,8 @@ export default function TranscriptPanel({ paragraphs, audioUrl, externalAudioRef
 									? mentions.find((m) => s.start < m.end && s.end > m.start && (m.details?.name ?? null) === selectedEntityId)
 									: undefined
 
-								const raw2 = (m2 as any)?.details?.score ?? (m2 as any)?.details?.match_score
-								const s2 = Number(raw2)
-								const c2 = s2 == null ? '' : s2 > 0 ? 'bg-green-500' : s2 < 0 ? 'bg-red-500' : 'bg-gray-500'
+								// groupColor stays consistent for the whole group based on the first matched mention
+
 								if (!m2) break
 
 								groupItems.push(
