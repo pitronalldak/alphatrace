@@ -66,18 +66,19 @@ model cryptocurrencies {
 }
 
 model mentions {
-  id             String   @id(map: "pk_mentions") @db.Uuid
-  post_id        String   @db.Uuid
-  entity_type    String   @db.VarChar(16)
-  entity_id      String?  @db.Uuid
-  match_score    Int
-  matched_fields String?  @db.VarChar(255)
-  created_at     DateTime @db.Timestamp(6)
-  updated_at     DateTime @db.Timestamp(6)
-  start          Float
-  end            Float
+  id          String   @id(map: "pk_mentions") @db.Uuid
+  post_id     String   @db.Uuid
+  entity_type String   @db.VarChar(16)
+  entity_id   String?  @db.Uuid
+  match_score Int?
+  created_at  DateTime @db.Timestamp(6)
+  updated_at  DateTime @db.Timestamp(6)
+  start       Float
+  end         Float
+  entity_name String?  @db.VarChar(255)
+  details     Json?    @db.Json
 
-  @@unique([post_id, entity_id, start, end], map: "uniq_post_entity_start_end")
+  @@unique([post_id, entity_id, entity_name, start, end], map: "uniq_post_entity_start_end")
 }
 
 model posts {

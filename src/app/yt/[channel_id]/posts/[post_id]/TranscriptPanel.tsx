@@ -1,24 +1,29 @@
 'use client'
 
-import { RefObject, useEffect, useMemo, useRef, useState } from 'react'
+import { RefObject, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 
 type Snippet = { confidence: string; end: number; speaker: string; start: number; text: string }
+
+type Mention = { start: number; end: number; entityId?: string | null; details: { score: number; name?: string | null; ticker?: string | null } }
 
 type Props = {
 	paragraphs: Snippet[]
 	audioUrl?: string | null
 	externalAudioRef?: RefObject<HTMLAudioElement>
 	onFirstPlay?: () => void
+	onPlayAt?: (seconds: number, persist: boolean) => void
+	mentions?: Mention[]
+    selectedEntityId?: string | null
 }
 
-export default function TranscriptPanel({ paragraphs, audioUrl, externalAudioRef, onFirstPlay }: Props) {
-	console.log('TranscriptPanel', paragraphs, audioUrl, externalAudioRef)
+export default function TranscriptPanel({ paragraphs, audioUrl, externalAudioRef, onFirstPlay, onPlayAt, mentions = [], selectedEntityId = null }: Props) {
 	const [q, setQ] = useState('')
 	const [stickyPlay, setStickyPlay] = useState(false)
 	const internalRef = useRef<HTMLAudioElement | null>(null)
 	const audioRef = externalAudioRef ?? internalRef
 	const firstPlayedRef = useRef(false)
 
+	
 	const filtered = useMemo(() => {
 		if (!Array.isArray(paragraphs)) return []
 		if (!q) return paragraphs
@@ -26,7 +31,14 @@ export default function TranscriptPanel({ paragraphs, audioUrl, externalAudioRef
 	}, [paragraphs, q])
 
 	function playFrom(start: number, persist: boolean) {
-		console.log('playFrom', start, persist)
+		if (onPlayAt) {
+			onPlayAt(start, persist)
+			if (persist && !firstPlayedRef.current) {
+				firstPlayedRef.current = true
+				onFirstPlay?.()
+			}
+			return
+		}
 		const audio = audioRef.current
 		if (!audio || !audioUrl) return
 		if (audio.src !== audioUrl) audio.src = audioUrl
@@ -63,37 +75,97 @@ export default function TranscriptPanel({ paragraphs, audioUrl, externalAudioRef
 		return () => audio.removeEventListener('ended', onEnded)
 	}, [audioRef])
 
+
 	return (
-		<div className="space-y-4">
-			{audioUrl && !externalAudioRef && <audio ref={audioRef} preload="metadata" />}
-			<input
-				type="text"
-				placeholder="Search transcript..."
-				className="w-full max-w-md rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300"
-				value={q}
-				onChange={(e) => setQ(e.target.value)}
-		/>
+		<div className="space-y-4 mb-[240px]">
+			{!onPlayAt && audioUrl && !externalAudioRef && <audio ref={audioRef} preload="metadata" />}
 			<div className="space-y-3">
-				<p className="text-sm leading-7 text-gray-800">
-					{filtered.map((snip, si) => (
-						<span key={`s-${si}`}>
-							{snip.text
-								?.split(/\s+/)
-								.filter(Boolean)
-								.map((word, wi) => (
-									<span
-										key={`w-${si}-${wi}`}
-										onMouseEnter={() => handleHover(snip.start)}
-										onMouseLeave={handleLeave}
-										onClick={() => handleClick(snip.start)}
-										className="hover:underline cursor-pointer"
-									>
-										{word}
+				<p className="text-[16px] text-gray-800">
+					{(() => {
+						const nodes: ReactNode[] = []
+						let i = 0
+						while (i < filtered.length) {
+							const snip = filtered[i]
+							const match = selectedEntityId
+								? mentions.find((m) => snip.start < m.end && snip.end > m.start && (m.details?.name ?? null) === selectedEntityId)
+								: undefined
+
+							const rawScore = (match as any)?.details?.score ?? (match as any)?.details?.match_score
+							const score = Number(rawScore)
+							const colorClass = score == null ? '' : score > 0 ? 'bg-green-500' : score < 0 ? 'bg-red-500' : 'bg-gray-500'
+							const isHighlighted = !!match && !!colorClass
+
+							if (!isHighlighted) {
+								// Non-highlighted snippet rendered plainly
+								nodes.push(
+									<span key={`s-${i}`}>
+										{snip.text
+											?.split(/\s+/)
+											.filter(Boolean)
+											.map((word, wi) => (
+												<span
+													key={`w-${i}-${wi}`}
+													onClick={() => handleClick(snip.start)}
+												>
+													{word}
+												</span>
+											))}{' '}
 									</span>
-								))}
-							{' '}
-						</span>
-					))}
+								)
+								i += 1
+								continue
+							}
+
+							// Start a highlighted group
+							const groupColor = colorClass
+							const groupItems: ReactNode[] = []
+							let j = i
+							while (j < filtered.length) {
+								const s = filtered[j]
+								const m2 = selectedEntityId
+									? mentions.find((m) => s.start < m.end && s.end > m.start && (m.details?.name ?? null) === selectedEntityId)
+									: undefined
+
+								const raw2 = (m2 as any)?.details?.score ?? (m2 as any)?.details?.match_score
+								const s2 = Number(raw2)
+								const c2 = s2 == null ? '' : s2 > 0 ? 'bg-green-500' : s2 < 0 ? 'bg-red-500' : 'bg-gray-500'
+								if (!m2) break
+
+								groupItems.push(
+									<span key={`s-${j}`}>
+										{s.text
+											?.split(/\s+/)
+											.filter(Boolean)
+											.map((word, wi) => (
+												<span
+													key={`w-${j}-${wi}`}
+													onClick={() => handleClick(s.start)}
+												>
+													{word}
+												</span>
+											))}{' '}
+									</span>
+								)
+								j += 1
+							}
+							
+							nodes.push(
+								<span key={`g-${i}`} className="relative inline-block">
+									<span className={`${groupColor} absolute inset-0 rounded-[4px] rounded-tl-[0px]`} aria-hidden />
+									{(match?.details?.name || match?.details?.ticker) && (
+										<span className={`absolute ${groupColor} text-white font-bold rounded-[2px] z-10`} style={{ whiteSpace: 'nowrap', transform: 'translateX(-100%)', left: '1px', padding: '2px 6px', borderTopLeftRadius: '8px' }}>
+											{`${match?.details?.name ?? ''}${match?.details?.name && match?.details?.ticker ? ' ' : ''}${match?.details?.ticker ? `(${match?.details?.ticker})` : ''}`}
+										</span>
+									)}
+									<span className="relative z-10 py-[2px] px-[2px] text-white font-bold cursor-pointer">
+										{groupItems}
+									</span>
+								</span>
+							)
+							i = j
+						}
+						return nodes
+					})()}
 				</p>
 				{filtered.length === 0 && (
 					<p className="text-sm text-gray-500">No matching results.</p>

@@ -1,9 +1,5 @@
 import { prisma } from '@/lib/prisma'
-import TranscriptPanel from './TranscriptPanel'
-import ExpandableText from './ExpandableText'
-import AudioFooter from './AudioFooter'
-import RefreshPostButton from './RefreshPostButton'
-import { createRef } from 'react'
+import ClientPostView from './ClientPostView'
 
 export const dynamic = 'force-dynamic'
 
@@ -49,48 +45,55 @@ export default async function PostPage({ params }: { params: Promise<Params> }) 
 		)
 	}
 
-	let paragraphs= post.transcripts?.[0]?.text as any
+	const paragraphs = (post.transcripts?.[0]?.text as any) ?? []
 	const duration = formatDuration(post.duration_seconds)
 	const published = new Date(post.published_at as unknown as string).toLocaleDateString()
-	const sharedAudioRef = createRef<HTMLAudioElement>() as React.RefObject<HTMLAudioElement>
+
+	const mentionsRaw = await prisma.mentions.findMany({
+		where: { post_id: post.id },
+		select: { start: true, end: true, entity_type: true, entity_id: true, details: true },
+	})
+
+	const companyIds = Array.from(new Set(mentionsRaw
+		.filter((m: { entity_type: string; entity_id: string | null }) => m.entity_type === 'company' && m.entity_id)
+		.map((m: { entity_id: string | null }) => String(m.entity_id))))
+	const cryptoIds = Array.from(new Set(mentionsRaw
+		.filter((m: { entity_type: string; entity_id: string | null }) => m.entity_type === 'cryptocurrency' && m.entity_id)
+		.map((m: { entity_id: string | null }) => String(m.entity_id))))
+
+	const companies = companyIds.length > 0 ? await prisma.companies.findMany({
+		where: { id: { in: companyIds } },
+		select: { id: true, name: true, ticker: true },
+	}) : []
+	const cryptos = cryptoIds.length > 0 ? await prisma.cryptocurrencies.findMany({
+		where: { id: { in: cryptoIds } },
+		select: { id: true, name: true },
+	}) : []
+
+
+	const mentions = mentionsRaw.map((m: { start: number; end: number; entity_type: string; entity_id: string | null; details: any }) => {
+		return {
+			start: Number(m.start) || 0,
+			end: Number(m.end) || 0,
+			entityType: m.entity_type,
+			entityId: m.entity_id,
+			details: m.details,
+		}
+	})
 
 	return (
 		<div className="min-h-screen bg-white text-gray-900 pb-20">
-			<header className="w-full" style={{ background: '#FAFAFBFF' }}>
-				<div className="max-w-6xl mx-auto px-6 py-12">
-					<div className="grid grid-cols-1 md:grid-cols-[360px_1fr] gap-8 items-start">
-						<div className="w-full">
-							{post.logo_url ? (
-								<img src={post.logo_url} alt={post.title ?? ''} className="w-full h-[220px] md:h-[260px] object-cover rounded-xl shadow-sm border border-gray-200 bg-gray-100" />
-							) : (
-								<div className="w-full h-[220px] md:h-[260px] rounded-xl bg-gray-200 border border-gray-200" />
-							)}
-						</div>
-						<div className="min-w-0">
-							<div className="flex items-start justify-between gap-4">
-								<h1 className="text-3xl md:text-5xl font-extrabold tracking-tight text-gray-900">{post.title ?? post.id}</h1>
-								<RefreshPostButton postUrl={post.url} />
-							</div>
-							<div className="mt-4 flex flex-wrap items-center gap-5 text-sm text-gray-600">
-								<span className="inline-flex items-center gap-2"><span aria-hidden>👤</span><span>{post.channels?.title ?? 'Channel'}</span></span>
-								<span className="inline-flex items-center gap-2"><span aria-hidden>📅</span><span>{published}</span></span>
-								{duration && <span className="inline-flex items-center gap-2"><span aria-hidden>⏱</span><span>{duration}</span></span>}
-							</div>
-							{post.description && (<div className="mt-6"><ExpandableText text={post.description} lines={2} /></div>)}
-						</div>
-					</div>
-				</div>
-			</header>
-
-			<div className="max-w-6xl mx-auto px-6 py-10">
-				{paragraphs?.length > 0 ? (
-					<TranscriptPanel paragraphs={paragraphs} audioUrl={post.s3_audio_url} externalAudioRef={sharedAudioRef} />
-				) : (
-					<p className="text-sm text-gray-500">No transcript available for this episode.</p>
-				)}
-			</div>
-
-			<AudioFooter audioUrl={post.s3_audio_url} externalRef={sharedAudioRef} />
+			<ClientPostView
+				id={post.id}
+				title={post.title}
+				videoUrl={post.url}
+				channelTitle={post.channels?.title ?? null}
+				published={published}
+				duration={duration}
+				description={post.description}
+				paragraphs={paragraphs}
+				mentions={mentions}
+			/>
 		</div>
 	)
 } 
