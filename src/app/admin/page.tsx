@@ -1,10 +1,25 @@
 "use client"
 
-import { useState } from 'react'
+import {useState, useEffect} from 'react';
 import Link from 'next/link'
 
+const CHANNEL_TYPES = [
+"TopVoice",
+"Professional",
+"Influencer",
+"News",
+"Business",
+"",
+] as const;
+  
+export interface ChannelType {
+	value: typeof CHANNEL_TYPES[number];
+}
+  
 export default function AdminPage() {
 	const [url, setUrl] = useState('')
+	const [type, setType] = useState<typeof CHANNEL_TYPES[number] | null>("")
+	const [channelTypes, setChannelTypes] = useState<ChannelType[]>([{value: ""}])
 	const [loading, setLoading] = useState(false)
 	const [message, setMessage] = useState<string | null>(null)
 
@@ -17,7 +32,7 @@ export default function AdminPage() {
 			const res = await fetch('/api/admin/channels', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ url: url.trim() }),
+				body: JSON.stringify({ url: url.trim(), type: type ? type : null }),
 			})
 			const data = await res.json().catch(() => ({}))
 			if (!res.ok) throw new Error(data?.error || 'Failed to create channel')
@@ -29,6 +44,15 @@ export default function AdminPage() {
 			setLoading(false)
 		}
 	}
+
+	useEffect(() => {
+		async function fetchChannelTypes() {
+			const res = await fetch(`/api/channels/types`)
+			const data = await res.json().catch(() => ({}))
+			setChannelTypes([...data.channelTypes, {value: ""}])
+		}
+		fetchChannelTypes()
+	}, [])
 
 	return (
 		<div className="min-h-screen bg-white text-gray-900">
@@ -45,6 +69,16 @@ export default function AdminPage() {
 						value={url}
 						onChange={(e) => setUrl(e.target.value)}
 					/>
+					<br />
+					<label htmlFor="type">Type: </label>
+					<select className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm" value={type || ""} onChange={(e) => setType(e.target.value as typeof CHANNEL_TYPES[number])}>
+						{channelTypes.map((type) => (
+							<option key={type.value} value={type.value}>
+								{type.value}
+							</option>
+						))}
+					</select>
+					<br />
 					<button
 						type="submit"
 						disabled={loading || !url.trim()}

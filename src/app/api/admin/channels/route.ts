@@ -3,7 +3,7 @@ import { ALPHATRACE_API_URL } from '@/config/env'
 
 export async function POST(request: Request) {
     try {
-        const { url } = await request.json().catch(() => ({})) as { url?: string }
+        const { url, type } = await request.json().catch(() => ({})) as { url?: string, type?: string }
         if (!url || typeof url !== 'string') {
             return NextResponse.json({ error: 'Missing url' }, { status: 400 })
         }
@@ -11,7 +11,7 @@ export async function POST(request: Request) {
         const upstream = await fetch(`${ALPHATRACE_API_URL}/channels/import`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ url }),
+            body: JSON.stringify({ url, type }),
         })
 
         const data = await upstream.json().catch(() => ({}))
